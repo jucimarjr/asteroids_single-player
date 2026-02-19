@@ -11,8 +11,8 @@ import sys
 import pygame as pg
 
 from core import config as C
-from audio import load_sounds
-from controls import InputMapper
+from client.audio import load_sounds
+from client.controls import InputMapper
 from core.world import World
 from core.utils import draw_text
 
