@@ -22,20 +22,22 @@ class Renderer:
         self.font = safe_fonts["font"]
         self.big = safe_fonts["big"]
 
+        self._draw_dispatch: dict[type, callable] = {
+            Bullet: self._draw_bullet,
+            Asteroid: self._draw_asteroid,
+            Ship: self._draw_ship,
+            UFO: self._draw_ufo,
+        }
+
     def clear(self) -> None:
         self.screen.fill(self.config.BLACK)
 
     def draw_world(self, world: object) -> None:
         sprites = getattr(world, "all_sprites", [])
         for sprite in sprites:
-            if isinstance(sprite, Bullet):
-                self._draw_bullet(sprite)
-            elif isinstance(sprite, Asteroid):
-                self._draw_asteroid(sprite)
-            elif isinstance(sprite, Ship):
-                self._draw_ship(sprite)
-            elif isinstance(sprite, UFO):
-                self._draw_ufo(sprite)
+            drawer = self._draw_dispatch.get(type(sprite))
+            if drawer is not None:
+                drawer(sprite)
 
     def draw_hud(
         self,

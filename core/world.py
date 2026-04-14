@@ -1,4 +1,4 @@
-"""Game systems (World, collisions, waves, score)."""
+"""Game systems (World, waves, score)."""
 
 import math
 from random import uniform
@@ -7,9 +7,10 @@ from typing import Dict
 import pygame as pg
 
 from core import config as C
+from core.collisions import CollisionManager
 from core.commands import PlayerCommand
-from core.entities import Asteroid, Ship, UFO, UFO_BULLET_OWNER
-from core.utils import Vec, rand_edge_pos, rand_unit_vec
+from core.entities import Asteroid, Ship, UFO
+from core.utils import Vec, rand_edge_pos
 
 PlayerId = int
 
@@ -29,13 +30,14 @@ class World:
         self.ufos = pg.sprite.Group()
         self.all_sprites = pg.sprite.Group()
 
-        self.score = 0
-        self.lives = C.START_LIVES
+        self.scores: Dict[PlayerId, int] = {}
+        self.lives: Dict[PlayerId, int] = {}
         self.wave = 0
         self.wave_cool = float(C.WAVE_DELAY)
         self.ufo_timer = float(C.UFO_SPAWN_EVERY)
 
         self.events: list[str] = []
+        self._collision_mgr = CollisionManager()
 
         self.game_over = False
 
@@ -54,6 +56,8 @@ class World:
         ship.invuln = float(C.SAFE_SPAWN_TIME)
 
         self.ships[player_id] = ship
+        self.scores[player_id] = 0
+        self.lives[player_id] = C.START_LIVES
         self.all_sprites.add(ship)
 
     def get_ship(self, player_id: PlayerId) -> Ship | None:
@@ -63,12 +67,14 @@ class World:
         self.wave += 1
         count = C.WAVE_BASE_COUNT + self.wave
 
-        ship = self.get_ship(C.LOCAL_PLAYER_ID)
-        ship_pos = ship.pos if ship else Vec(C.WIDTH / 2, C.HEIGHT / 2)
+        ship_positions = [s.pos for s in self.ships.values()]
 
         for _ in range(count):
             pos = rand_edge_pos()
-            while (pos - ship_pos).length() < C.AST_MIN_SPAWN_DIST:
+            while any(
+                (pos - sp).length() < C.AST_MIN_SPAWN_DIST
+                for sp in ship_positions
+            ):
                 pos = rand_edge_pos()
 
             ang = uniform(0, math.tau)
@@ -84,7 +90,7 @@ class World:
     def spawn_ufo(self) -> None:
         small = uniform(0, 1) < 0.5
         pos = rand_edge_pos()
-        target = self._get_primary_target()
+        target = self._get_nearest_ship_pos(pos)
         ufo = UFO(pos, small, target_pos=target)
         self.ufos.add(ufo)
 
@@ -120,7 +126,9 @@ class World:
 
             if cmd.hyperspace:
                 ship.hyperspace()
-                self.score = max(0, self.score - C.HYPERSPACE_COST)
+                self.scores[player_id] = max(
+                    0, self.scores[player_id] - C.HYPERSPACE_COST
+                )
 
             bullet = ship.apply_command(cmd, dt, self.bullets)
             if bullet is not None:
@@ -129,15 +137,13 @@ class World:
                 self.events.append("player_shoot")
 
     def _update_ufos(self, dt: float) -> None:
-        target = self._get_primary_target()
-
         for ufo in list(self.ufos):
-            ufo.target_pos = target
+            ufo.target_pos = self._get_nearest_ship_pos(ufo.pos)
             ufo.update(dt)
             if not ufo.alive():
                 continue
 
-            ufo.target_pos = target
+            ufo.target_pos = self._get_nearest_ship_pos(ufo.pos)
             bullet = ufo.try_fire()
             if bullet is not None:
                 self.bullets.add(bullet)
@@ -147,9 +153,16 @@ class World:
             if not ufo.alive():
                 self.ufos.remove(ufo)
 
-    def _get_primary_target(self) -> Vec | None:
-        ship = self.get_ship(C.LOCAL_PLAYER_ID)
-        return ship.pos if ship is not None else None
+    def _get_nearest_ship_pos(self, from_pos: Vec) -> Vec | None:
+        """Return position of the nearest living ship to from_pos."""
+        nearest = None
+        min_dist = float("inf")
+        for ship in self.ships.values():
+            d = (ship.pos - from_pos).length()
+            if d < min_dist:
+                min_dist = d
+                nearest = ship
+        return nearest.pos if nearest else None
 
     def _update_timers(self, dt: float) -> None:
         self.ufo_timer -= dt
@@ -167,114 +180,32 @@ class World:
             self.wave_cool = float(C.WAVE_DELAY)
 
     def _handle_collisions(self) -> None:
-        self._bullets_vs_asteroids()
-        self._ufo_vs_player_bullets()
-        self._ufo_vs_asteroids()
-        self._ship_vs_asteroids()
-        self._ship_vs_ufo_bullets()
-
-    def _bullets_vs_asteroids(self) -> None:
-        hits = pg.sprite.groupcollide(
-            self.asteroids,
-            self.bullets,
-            False,
-            True,
-            collided=lambda a, b: (a.pos - b.pos).length() < a.r,
+        result = self._collision_mgr.resolve(
+            self.ships, self.bullets, self.asteroids, self.ufos,
         )
 
-        for ast, bullets in hits.items():
-            if any(b.owner_id == UFO_BULLET_OWNER for b in bullets):
-                ast.kill()
-                self.events.append("asteroid_explosion")
-                continue
+        self.events.extend(result.events)
 
-            self._split_asteroid(ast, add_score=True)
+        for player_id, delta in result.score_deltas.items():
+            if player_id in self.scores:
+                self.scores[player_id] += delta
 
-    def _ufo_vs_player_bullets(self) -> None:
-        for ufo in list(self.ufos):
-            for bullet in list(self.bullets):
-                if bullet.owner_id <= 0:
-                    continue
-                if (ufo.pos - bullet.pos).length() < (ufo.r + bullet.r):
-                    score = (
-                        C.UFO_SMALL["score"]
-                        if ufo.small
-                        else C.UFO_BIG["score"]
-                    )
-                    self.score += score
-                    ufo.kill()
-                    bullet.kill()
-                    self.events.append("ship_explosion")
+        for pos, vel, size in result.asteroids_to_spawn:
+            self.spawn_asteroid(pos, vel, size)
 
-    def _ufo_vs_asteroids(self) -> None:
-        """UFO collided with asteroid.
-
-        - UFO is destroyed.
-        - Asteroid splits as if it were hit by a bullet, but
-          without adding score.
-        """
-        for ufo in list(self.ufos):
-            for ast in list(self.asteroids):
-                if (ufo.pos - ast.pos).length() < (ufo.r + ast.r):
-                    ufo.kill()
-                    if ufo in self.ufos:
-                        self.ufos.remove(ufo)
-
-                    self.events.append("ship_explosion")
-                    self._split_asteroid(ast, add_score=False)
-                    break
-
-    def _ship_vs_asteroids(self) -> None:
-        for ship in self.ships.values():
-            if ship.invuln > 0.0:
-                continue
-            for ast in self.asteroids:
-                if (ast.pos - ship.pos).length() < (ast.r + ship.r):
-                    self._ship_die(ship)
-                    return
-
-    def _ship_vs_ufo_bullets(self) -> None:
-        for ship in self.ships.values():
-            if ship.invuln > 0.0:
-                continue
-            for bullet in list(self.bullets):
-                if bullet.owner_id != UFO_BULLET_OWNER:
-                    continue
-                if (bullet.pos - ship.pos).length() < (bullet.r + ship.r):
-                    bullet.kill()
-                    self._ship_die(ship)
-                    return
-
-    def _split_asteroid(
-        self,
-        ast: Asteroid,
-        add_score: bool = True,
-    ) -> None:
-        """Split or destroy an asteroid.
-
-        add_score=False is used when a UFO collides with an asteroid.
-        """
-        if add_score:
-            self.score += C.AST_SIZES[ast.size]["score"]
-
-        split = C.AST_SIZES[ast.size]["split"]
-        pos = Vec(ast.pos)
-        ast.kill()
-
-        self.events.append("asteroid_explosion")
-
-        for new_size in split:
-            dirv = rand_unit_vec()
-            speed = uniform(C.AST_VEL_MIN, C.AST_VEL_MAX) * C.AST_SPLIT_SPEED_MULT
-            self.spawn_asteroid(pos, dirv * speed, new_size)
+        for player_id in result.ship_deaths:
+            ship = self.get_ship(player_id)
+            if ship is not None:
+                self._ship_die(ship)
 
     def _ship_die(self, ship: Ship) -> None:
-        self.lives -= 1
+        pid = ship.player_id
+        self.lives[pid] = self.lives[pid] - 1
         ship.pos.xy = (C.WIDTH / 2, C.HEIGHT / 2)
         ship.vel.xy = (0, 0)
         ship.angle = -90.0
         ship.invuln = float(C.SAFE_SPAWN_TIME)
 
         self.events.append("ship_explosion")
-        if self.lives <= 0:
+        if all(v <= 0 for v in self.lives.values()):
             self.game_over = True

@@ -12,6 +12,7 @@ import pygame as pg
 from core import config as C
 from core.scene import SceneState
 from client.audio import load_sounds
+from client.audio_manager import AudioManager
 from client.controls import InputMapper
 from client.renderer import Renderer
 from core.world import World
@@ -44,12 +45,7 @@ class Game:
         self.input_mapper = InputMapper()
 
         self.sounds = load_sounds(C.SOUND_PATH)
-
-        self._thrust_ch = pg.mixer.Channel(1)
-        self._sfx_ch = pg.mixer.Channel(2)
-        self._ufo_ch = pg.mixer.Channel(3)
-
-        self._ufo_siren_kind: str | None = None
+        self.audio = AudioManager(self.sounds)
 
     def run(self) -> None:
         while self.running:
@@ -93,13 +89,13 @@ class Game:
         self.world.update(dt, commands)
 
         if self.world.game_over:
-            self._stop_loops()
+            self.audio.stop_all()
             self.scene = SceneState.GAME_OVER
             return
 
-        self._update_thrust(cmd.thrust)
-        self._update_ufo_siren()
-        self._play_events(self.world.events)
+        self.audio.update_thrust(cmd.thrust)
+        self.audio.update_ufo_siren(list(self.world.ufos))
+        self.audio.play_events(self.world.events)
 
     def _draw(self) -> None:
         self.renderer.clear()
@@ -116,69 +112,12 @@ class Game:
 
         self.renderer.draw_world(self.world)
         self.renderer.draw_hud(
-            self.world.score,
-            self.world.lives,
+            self.world.scores.get(C.LOCAL_PLAYER_ID, 0),
+            self.world.lives.get(C.LOCAL_PLAYER_ID, 0),
             self.world.wave,
             self.scene,
         )
         pg.display.flip()
-
-    def _play_events(self, events: list[str]) -> None:
-        for ev in events:
-            if ev == "player_shoot":
-                self._sfx_ch.play(self.sounds.player_shoot)
-            elif ev == "ufo_shoot":
-                self._sfx_ch.play(self.sounds.ufo_shoot)
-            elif ev == "asteroid_explosion":
-                self._sfx_ch.play(self.sounds.asteroid_explosion)
-            elif ev == "ship_explosion":
-                self._sfx_ch.play(self.sounds.ship_explosion)
-
-    def _update_thrust(self, thrust: bool) -> None:
-        if thrust:
-            if not self._thrust_ch.get_busy():
-                self._thrust_ch.play(self.sounds.thrust_loop, loops=-1)
-        else:
-            if self._thrust_ch.get_busy():
-                self._thrust_ch.stop()
-
-    def _update_ufo_siren(self) -> None:
-        kind = self._choose_ufo_siren()
-        if kind is None:
-            if self._ufo_ch.get_busy():
-                self._ufo_ch.stop()
-            self._ufo_siren_kind = None
-            return
-
-        if self._ufo_siren_kind == kind:
-            return
-
-        self._ufo_ch.stop()
-        if kind == "small":
-            snd = self.sounds.ufo_siren_small
-        else:
-            snd = self.sounds.ufo_siren_big
-
-        self._ufo_ch.play(snd, loops=-1)
-        self._ufo_siren_kind = kind
-
-    def _choose_ufo_siren(self) -> str | None:
-        if not getattr(self.world, "ufos", None):
-            return None
-
-        ufos = list(self.world.ufos)
-        if not ufos:
-            return None
-
-        has_small = any(getattr(u, "small", False) for u in ufos)
-        return "small" if has_small else "big"
-
-    def _stop_loops(self) -> None:
-        if self._thrust_ch.get_busy():
-            self._thrust_ch.stop()
-        if self._ufo_ch.get_busy():
-            self._ufo_ch.stop()
-        self._ufo_siren_kind = None
 
     def _quit(self) -> None:
         self.running = False
