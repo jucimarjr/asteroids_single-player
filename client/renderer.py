@@ -86,18 +86,8 @@ class Renderer:
         self._draw_centered(self.font, "Q  -  QUIT", y + 24)
 
     def draw_game_over(self) -> None:
-        self._draw_text(
-            self.big,
-            "GAME OVER",
-            self.config.WIDTH // 2 - 170,
-            260,
-        )
-        self._draw_text(
-            self.font,
-            "Press any key",
-            self.config.WIDTH // 2 - 170,
-            340,
-        )
+        self._draw_centered(self.big, "GAME OVER", 260)
+        self._draw_centered(self.font, "Press any key", 340)
 
     def _draw_text(
         self,
