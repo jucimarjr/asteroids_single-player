@@ -48,7 +48,12 @@ class Particle(pg.sprite.Sprite):
 
 
 class Bullet(pg.sprite.Sprite):
-    """Generic projectile."""
+    """Generic projectile.
+
+    Bullets do not wrap the screen. Their range is bounded by TTL, so wrapping
+    would let a shot fired at one edge instantly reappear on the opposite side
+    and hit something the player never aimed at.
+    """
 
     def __init__(
         self,
@@ -67,7 +72,6 @@ class Bullet(pg.sprite.Sprite):
 
     def update(self, dt: float) -> None:
         self.pos += self.vel * dt
-        self.pos = wrap_pos(self.pos)
         self.ttl -= dt
         if self.ttl <= 0.0:
             self.kill()
