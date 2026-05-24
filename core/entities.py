@@ -27,8 +27,9 @@ def rotate_vec(v: Vec, deg: float) -> Vec:
 class Particle(pg.sprite.Sprite):
     """Short-lived debris particle for explosion effects. Non-interacting.
 
-    Particles don't wrap the screen — they live ~1s and travel ≤200px, so
-    wrapping would teleport stray particles to the opposite edge and look like a bug.
+    Particles don't wrap the screen — they live ~1s and travel ≤200px,
+    so wrapping would teleport stray particles to the opposite edge
+    and look like a bug.
     """
 
     def __init__(self, pos: Vec, vel: Vec, ttl: float) -> None:
@@ -169,13 +170,13 @@ class Ship(pg.sprite.Sprite):
         return Bullet(self.player_id, pos, vel, ttl=C.BULLET_TTL)
 
     def hyperspace(self, pos: Vec) -> None:
-        """Teleport to the given position. The caller picks where it is safe."""
+        """Teleport to the given position; caller picks a safe spot."""
         self.pos = Vec(pos)
         self.vel.xy = (0, 0)
         self.invuln.reset(C.SAFE_SPAWN_TIME)
 
     def try_activate_shield(self) -> bool:
-        """Start the shield if its cooldown has elapsed. Returns True on success."""
+        """Start the shield if off cooldown. Returns True on success."""
         if self.shield_cd.active:
             return False
         self.shield.reset(C.SHIELD_DURATION)
@@ -333,7 +334,11 @@ class UFO(pg.sprite.Sprite):
                 return None
             dirv = to_target.normalize()
 
-        jitter = C.UFO_AIM_JITTER_DEG_SMALL if self.small else C.UFO_AIM_JITTER_DEG_BIG
+        jitter = (
+            C.UFO_AIM_JITTER_DEG_SMALL
+            if self.small
+            else C.UFO_AIM_JITTER_DEG_BIG
+        )
         dirv = rotate_vec(dirv, uniform(-jitter, jitter))
 
         vel = dirv * C.UFO_BULLET_SPEED

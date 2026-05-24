@@ -74,7 +74,10 @@ class World:
 
         for _ in range(count):
             pos = rand_edge_pos()
-            while any((pos - sp).length() < C.AST_MIN_SPAWN_DIST for sp in ship_positions):
+            while any(
+                (pos - sp).length() < C.AST_MIN_SPAWN_DIST
+                for sp in ship_positions
+            ):
                 pos = rand_edge_pos()
 
             ang = uniform(0, math.tau)
@@ -126,7 +129,9 @@ class World:
 
             if cmd.hyperspace:
                 ship.hyperspace(self._find_safe_hyperspace_pos(ship))
-                self.scores[player_id] = max(0, self.scores[player_id] - C.HYPERSPACE_COST)
+                self.scores[player_id] = max(
+                    0, self.scores[player_id] - C.HYPERSPACE_COST
+                )
 
             if cmd.shield and ship.try_activate_shield():
                 self.events.append("shield_on")
@@ -175,7 +180,8 @@ class World:
         for _ in range(C.HYPERSPACE_ATTEMPTS):
             pos = Vec(uniform(0, C.WIDTH), uniform(0, C.HEIGHT))
             if all(
-                (pos - ast.pos).length() > (ast.r + ship.r + C.HYPERSPACE_SAFE_MARGIN)
+                (pos - ast.pos).length()
+                > (ast.r + ship.r + C.HYPERSPACE_SAFE_MARGIN)
                 for ast in self.asteroids
             ):
                 return pos
@@ -249,7 +255,7 @@ class World:
             self.game_over = True
 
     def _maybe_award_extra_life(self, player_id: PlayerId) -> None:
-        """Grant one extra life per EXTRA_LIFE_EVERY-point threshold crossed."""
+        """Grant one extra life per EXTRA_LIFE_EVERY points crossed."""
         total = self.scores[player_id]
         already = self.extra_lives_awarded[player_id]
         target = total // C.EXTRA_LIFE_EVERY

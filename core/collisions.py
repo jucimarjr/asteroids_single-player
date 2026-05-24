@@ -17,7 +17,9 @@ class CollisionResult:
     events: list[str] = field(default_factory=list)
     score_deltas: dict[PlayerId, int] = field(default_factory=dict)
     ship_deaths: list[PlayerId] = field(default_factory=list)
-    asteroids_to_spawn: list[tuple[Vec, Vec, str]] = field(default_factory=list)
+    asteroids_to_spawn: list[tuple[Vec, Vec, str]] = field(
+        default_factory=list
+    )
     # (position, kind) — kind is "asteroid", "ufo", or "ship"; World looks up
     # the count/speed/ttl tuple in core.config and spawns the particles.
     particles_to_spawn: list[tuple[Vec, str]] = field(default_factory=list)
@@ -74,8 +76,11 @@ class CollisionManager:
         ufos: pg.sprite.Group,
         result: CollisionResult,
     ) -> None:
-        """Kill a UFO and emit its explosion event + particles. Helper for the
-        three sites that destroy a UFO (player bullet, asteroid contact, shield)."""
+        """Kill a UFO and emit its explosion event + particles.
+
+        Helper for the three sites that destroy a UFO: player bullet,
+        asteroid contact, and shield.
+        """
         pos = Vec(ufo.pos)
         ufo.kill()
         if ufo in ufos:
@@ -94,7 +99,8 @@ class CollisionManager:
                 if bullet.owner_id <= 0:
                     continue
                 if (ufo.pos - bullet.pos).length() < (ufo.r + bullet.r):
-                    score = C.UFO_SMALL["score"] if ufo.small else C.UFO_BIG["score"]
+                    cfg = C.UFO_SMALL if ufo.small else C.UFO_BIG
+                    score = cfg["score"]
                     result.score_deltas[bullet.owner_id] = (
                         result.score_deltas.get(bullet.owner_id, 0) + score
                     )
@@ -107,7 +113,7 @@ class CollisionManager:
         asteroids: pg.sprite.Group,
         result: CollisionResult,
     ) -> None:
-        """UFO collided with asteroid. UFO dies, asteroid splits without score."""
+        """UFO hit asteroid: UFO dies, asteroid splits with no score."""
         for ufo in list(ufos):
             for ast in list(asteroids):
                 if (ufo.pos - ast.pos).length() < (ufo.r + ast.r):
@@ -127,7 +133,7 @@ class CollisionManager:
             for ast in list(asteroids):
                 if (ast.pos - ship.pos).length() < (ast.r + ship.r):
                     if ship.shield.active:
-                        # Shield deflects: damage the asteroid, no score, ship survives.
+                        # Shield deflects: split asteroid, ship survives.
                         self._split_asteroid(ast, result=result)
                         continue
                     result.ship_deaths.append(ship.player_id)
@@ -178,7 +184,8 @@ class CollisionManager:
         """
         if scorer_id is not None:
             result.score_deltas[scorer_id] = (
-                result.score_deltas.get(scorer_id, 0) + C.AST_SIZES[ast.size]["score"]
+                result.score_deltas.get(scorer_id, 0)
+                + C.AST_SIZES[ast.size]["score"]
             )
 
         split = C.AST_SIZES[ast.size]["split"]
@@ -190,5 +197,8 @@ class CollisionManager:
 
         for new_size in split:
             dirv = rand_unit_vec()
-            speed = uniform(C.AST_VEL_MIN, C.AST_VEL_MAX) * C.AST_SPLIT_SPEED_MULT
+            speed = (
+                uniform(C.AST_VEL_MIN, C.AST_VEL_MAX)
+                * C.AST_SPLIT_SPEED_MULT
+            )
             result.asteroids_to_spawn.append((pos, dirv * speed, new_size))

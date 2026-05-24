@@ -54,7 +54,10 @@ class Renderer:
         label = self.font.render(text, True, self.config.WHITE)
         self.screen.blit(label, (10, 10))
 
-        if extra_life_remaining > 0.0 and int(extra_life_remaining * 6) % 2 == 0:
+        if (
+            extra_life_remaining > 0.0
+            and int(extra_life_remaining * 6) % 2 == 0
+        ):
             notice = self.big.render("EXTRA LIFE", True, self.config.WHITE)
             x = (self.config.WIDTH - notice.get_width()) // 2
             self.screen.blit(notice, (x, 60))
@@ -73,7 +76,10 @@ class Renderer:
         ]
         maxkey = max(len(k) for k, _ in controls)
         lines = [f"{k:<{maxkey}}  -  {a}" for k, a in controls]
-        labels = [self.font.render(line, True, self.config.WHITE) for line in lines]
+        labels = [
+            self.font.render(line, True, self.config.WHITE)
+            for line in lines
+        ]
         widest = max(label.get_width() for label in labels)
         x = (self.config.WIDTH - widest) // 2
 
