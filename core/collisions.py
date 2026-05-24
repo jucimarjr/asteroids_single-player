@@ -55,7 +55,7 @@ class CollisionManager:
             bullets,
             False,
             True,
-            collided=lambda a, b: (a.pos - b.pos).length() < a.r,
+            collided=lambda a, b: (a.pos - b.pos).length_squared() < a.r * a.r,
         )
 
         for ast, hit_bullets in hits.items():
@@ -98,7 +98,8 @@ class CollisionManager:
             for bullet in list(bullets):
                 if bullet.owner_id <= 0:
                     continue
-                if (ufo.pos - bullet.pos).length() < (ufo.r + bullet.r):
+                r_sum = ufo.r + bullet.r
+                if (ufo.pos - bullet.pos).length_squared() < r_sum * r_sum:
                     cfg = C.UFO_SMALL if ufo.small else C.UFO_BIG
                     score = cfg["score"]
                     result.score_deltas[bullet.owner_id] = (
@@ -116,7 +117,8 @@ class CollisionManager:
         """UFO hit asteroid: UFO dies, asteroid splits with no score."""
         for ufo in list(ufos):
             for ast in list(asteroids):
-                if (ufo.pos - ast.pos).length() < (ufo.r + ast.r):
+                r_sum = ufo.r + ast.r
+                if (ufo.pos - ast.pos).length_squared() < r_sum * r_sum:
                     self._destroy_ufo(ufo, ufos, result)
                     self._split_asteroid(ast, result=result)
                     break
@@ -131,7 +133,8 @@ class CollisionManager:
             if ship.invuln.active:
                 continue
             for ast in list(asteroids):
-                if (ast.pos - ship.pos).length() < (ast.r + ship.r):
+                r_sum = ast.r + ship.r
+                if (ast.pos - ship.pos).length_squared() < r_sum * r_sum:
                     if ship.shield.active:
                         # Shield deflects: split asteroid, ship survives.
                         self._split_asteroid(ast, result=result)
@@ -150,7 +153,8 @@ class CollisionManager:
             if not ship.shield.active:
                 continue
             for ufo in list(ufos):
-                if (ufo.pos - ship.pos).length() < (ufo.r + ship.r):
+                r_sum = ufo.r + ship.r
+                if (ufo.pos - ship.pos).length_squared() < r_sum * r_sum:
                     self._destroy_ufo(ufo, ufos, result)
 
     def _ship_vs_ufo_bullets(
@@ -165,7 +169,8 @@ class CollisionManager:
             for bullet in list(bullets):
                 if bullet.owner_id != UFO_BULLET_OWNER:
                     continue
-                if (bullet.pos - ship.pos).length() < (bullet.r + ship.r):
+                r_sum = bullet.r + ship.r
+                if (bullet.pos - ship.pos).length_squared() < r_sum * r_sum:
                     bullet.kill()
                     if ship.shield.active:
                         continue

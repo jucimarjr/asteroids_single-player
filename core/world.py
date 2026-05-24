@@ -71,11 +71,12 @@ class World:
         count = C.WAVE_BASE_COUNT + self.wave
 
         ship_positions = [s.pos for s in self.ships.values()]
+        min_dist_sq = C.AST_MIN_SPAWN_DIST * C.AST_MIN_SPAWN_DIST
 
         for _ in range(count):
             pos = rand_edge_pos()
             while any(
-                (pos - sp).length() < C.AST_MIN_SPAWN_DIST
+                (pos - sp).length_squared() < min_dist_sq
                 for sp in ship_positions
             ):
                 pos = rand_edge_pos()
@@ -162,11 +163,11 @@ class World:
     def _get_nearest_ship_pos(self, from_pos: Vec) -> Vec | None:
         """Return position of the nearest living ship to from_pos."""
         nearest = None
-        min_dist = float("inf")
+        min_dist_sq = float("inf")
         for ship in self.ships.values():
-            d = (ship.pos - from_pos).length()
-            if d < min_dist:
-                min_dist = d
+            d_sq = (ship.pos - from_pos).length_squared()
+            if d_sq < min_dist_sq:
+                min_dist_sq = d_sq
                 nearest = ship
         return nearest.pos if nearest else None
 
@@ -177,11 +178,12 @@ class World:
         position if no clear spot is found, which only happens when the screen
         is saturated with asteroids.
         """
+        margin = ship.r + C.HYPERSPACE_SAFE_MARGIN
         for _ in range(C.HYPERSPACE_ATTEMPTS):
             pos = Vec(uniform(0, C.WIDTH), uniform(0, C.HEIGHT))
             if all(
-                (pos - ast.pos).length()
-                > (ast.r + ship.r + C.HYPERSPACE_SAFE_MARGIN)
+                (pos - ast.pos).length_squared()
+                > (ast.r + margin) ** 2
                 for ast in self.asteroids
             ):
                 return pos
