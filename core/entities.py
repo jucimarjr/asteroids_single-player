@@ -243,7 +243,7 @@ class UFO(pg.sprite.Sprite):
         start = choice(corners)
         target = Vec(C.WIDTH - start.x, C.HEIGHT - start.y)
         self.pos = Vec(start)
-        dirv = (target - start)
+        dirv = target - start
         if dirv.length_squared() > 0:
             dirv = dirv.normalize()
         self.vel = dirv * self.speed
@@ -299,11 +299,7 @@ class UFO(pg.sprite.Sprite):
                 return None
             dirv = to_target.normalize()
 
-        jitter = (
-            C.UFO_AIM_JITTER_DEG_SMALL
-            if self.small
-            else C.UFO_AIM_JITTER_DEG_BIG
-        )
+        jitter = C.UFO_AIM_JITTER_DEG_SMALL if self.small else C.UFO_AIM_JITTER_DEG_BIG
         dirv = rotate_vec(dirv, uniform(-jitter, jitter))
 
         vel = dirv * C.UFO_BULLET_SPEED

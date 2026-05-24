@@ -46,11 +46,7 @@ class AudioManager:
             return
 
         self._ufo_ch.stop()
-        if kind == "small":
-            snd = self.sounds.ufo_siren_small
-        else:
-            snd = self.sounds.ufo_siren_big
-
+        snd = self.sounds.ufo_siren_small if kind == "small" else self.sounds.ufo_siren_big
         self._ufo_ch.play(snd, loops=-1)
         self._ufo_siren_kind = kind
 

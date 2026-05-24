@@ -7,6 +7,7 @@
 from dataclasses import dataclass
 
 import pygame as pg
+
 from core import config as C
 
 

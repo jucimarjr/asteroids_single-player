@@ -3,7 +3,7 @@
 import pygame as pg
 
 from core import config as C
-from core.entities import Asteroid, Bullet, Ship, UFO
+from core.entities import UFO, Asteroid, Bullet, Ship
 from core.scene import SceneState
 
 

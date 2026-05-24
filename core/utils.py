@@ -1,8 +1,8 @@
 """Common game utilities."""
 
 import math
+from collections.abc import Iterable
 from random import random, uniform
-from typing import Iterable
 
 import pygame as pg
 

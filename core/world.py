@@ -2,14 +2,13 @@
 
 import math
 from random import uniform
-from typing import Dict
 
 import pygame as pg
 
 from core import config as C
 from core.collisions import CollisionManager
 from core.commands import PlayerCommand
-from core.entities import Asteroid, Ship, UFO
+from core.entities import UFO, Asteroid, Ship
 from core.utils import Vec, rand_edge_pos
 
 PlayerId = int
@@ -24,14 +23,14 @@ class World:
     """
 
     def __init__(self) -> None:
-        self.ships: Dict[PlayerId, Ship] = {}
+        self.ships: dict[PlayerId, Ship] = {}
         self.bullets = pg.sprite.Group()
         self.asteroids = pg.sprite.Group()
         self.ufos = pg.sprite.Group()
         self.all_sprites = pg.sprite.Group()
 
-        self.scores: Dict[PlayerId, int] = {}
-        self.lives: Dict[PlayerId, int] = {}
+        self.scores: dict[PlayerId, int] = {}
+        self.lives: dict[PlayerId, int] = {}
         self.wave = 0
         self.wave_cool = float(C.WAVE_DELAY)
         self.ufo_timer = float(C.UFO_SPAWN_EVERY)
@@ -71,10 +70,7 @@ class World:
 
         for _ in range(count):
             pos = rand_edge_pos()
-            while any(
-                (pos - sp).length() < C.AST_MIN_SPAWN_DIST
-                for sp in ship_positions
-            ):
+            while any((pos - sp).length() < C.AST_MIN_SPAWN_DIST for sp in ship_positions):
                 pos = rand_edge_pos()
 
             ang = uniform(0, math.tau)
@@ -99,7 +95,7 @@ class World:
     def update(
         self,
         dt: float,
-        commands_by_player_id: Dict[PlayerId, PlayerCommand],
+        commands_by_player_id: dict[PlayerId, PlayerCommand],
     ) -> None:
         self.begin_frame()
 
@@ -117,7 +113,7 @@ class World:
     def _apply_commands(
         self,
         dt: float,
-        commands_by_player_id: Dict[PlayerId, PlayerCommand],
+        commands_by_player_id: dict[PlayerId, PlayerCommand],
     ) -> None:
         for player_id, cmd in commands_by_player_id.items():
             ship = self.get_ship(player_id)
@@ -126,9 +122,7 @@ class World:
 
             if cmd.hyperspace:
                 ship.hyperspace()
-                self.scores[player_id] = max(
-                    0, self.scores[player_id] - C.HYPERSPACE_COST
-                )
+                self.scores[player_id] = max(0, self.scores[player_id] - C.HYPERSPACE_COST)
 
             bullet = ship.apply_command(cmd, dt, self.bullets)
             if bullet is not None:
@@ -181,7 +175,10 @@ class World:
 
     def _handle_collisions(self) -> None:
         result = self._collision_mgr.resolve(
-            self.ships, self.bullets, self.asteroids, self.ufos,
+            self.ships,
+            self.bullets,
+            self.asteroids,
+            self.ufos,
         )
 
         self.events.extend(result.events)
