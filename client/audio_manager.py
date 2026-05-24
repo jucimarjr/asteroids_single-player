@@ -60,5 +60,5 @@ class AudioManager:
     def _choose_ufo_siren(self, ufos: list) -> str | None:
         if not ufos:
             return None
-        has_small = any(getattr(u, "small", False) for u in ufos)
+        has_small = any(u.small for u in ufos)
         return "small" if has_small else "big"

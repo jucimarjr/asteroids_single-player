@@ -25,7 +25,11 @@ def rotate_vec(v: Vec, deg: float) -> Vec:
 
 
 class Particle(pg.sprite.Sprite):
-    """Short-lived debris particle for explosion effects. Non-interacting."""
+    """Short-lived debris particle for explosion effects. Non-interacting.
+
+    Particles don't wrap the screen — they live ~1s and travel ≤200px, so
+    wrapping would teleport stray particles to the opposite edge and look like a bug.
+    """
 
     def __init__(self, pos: Vec, vel: Vec, ttl: float) -> None:
         super().__init__()
@@ -36,7 +40,6 @@ class Particle(pg.sprite.Sprite):
 
     def update(self, dt: float) -> None:
         self.pos += self.vel * dt
-        self.pos = wrap_pos(self.pos)
         self.ttl -= dt
         if self.ttl <= 0.0:
             self.kill()
@@ -148,7 +151,7 @@ class Ship(pg.sprite.Sprite):
 
         count = 0
         for bullet in bullets:
-            if getattr(bullet, "owner_id", None) == self.player_id:
+            if bullet.owner_id == self.player_id:
                 count += 1
 
         if count >= C.MAX_BULLETS_PER_PLAYER:

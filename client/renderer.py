@@ -34,8 +34,7 @@ class Renderer:
         self.screen.fill(self.config.BLACK)
 
     def draw_world(self, world: object) -> None:
-        sprites = getattr(world, "all_sprites", [])
-        for sprite in sprites:
+        for sprite in world.all_sprites:
             drawer = self._draw_dispatch.get(type(sprite))
             if drawer is not None:
                 drawer(sprite)
