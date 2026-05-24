@@ -145,7 +145,6 @@ class World:
 
     def _update_ufos(self, dt: float) -> None:
         for ufo in list(self.ufos):
-            ufo.target_pos = self._get_nearest_ship_pos(ufo.pos)
             ufo.update(dt)
             if not ufo.alive():
                 continue
